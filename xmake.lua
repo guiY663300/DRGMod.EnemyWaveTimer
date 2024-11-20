@@ -2,6 +2,8 @@ local projectName = "WaveTimer"
 
 target(projectName)
     add_rules("ue4ss.mod")
-    set_kind("binary")
     add_includedirs(".")
     add_files("**.cpp")
+    on_link(function (target)
+        print(target)
+    end)

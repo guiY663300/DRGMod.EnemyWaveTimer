@@ -12,8 +12,9 @@
 #include <Unreal/FProperty.hpp>
 #include <Unreal/UFunction.hpp>
 #include <Unreal/BPMacros.hpp>
-#include <UE4SSProgram.hpp>
 #include <Unreal/UClass.hpp>
+#include <UE4SSProgram.hpp>
+
 
 using namespace std;
 using namespace RC;
@@ -25,15 +26,18 @@ struct InputParams {
     UObject* WaveManager;
 } in;
 
+struct ReturnParams {
+     int NormalWave;
+};
 
-void HookPre_WaveTimer_GetWaveTimes(UnrealScriptFunctionCallableContext& Context, void* CustomData)
+
+void HookPre_WaveTimer_GetWaveTimes(UnrealScriptFunctionCallableContext& context, void* custom_data)
 {
-    auto params = Context.GetParams<InputParams>();
+    auto params = context.GetParams<InputParams>();
     //Output::send<LogLevel::Verbose>(STR("Object Name: {}\n"), params.WaveManager->GetName());
 
     float* arr = (float*)((void*)(params.WaveManager + 0x134));
-    Output::send<LogLevel::Verbose>(STR("Normal Wave: {} Sripted Wave: {}\n"), (int)arr[0], (int)arr[1]);
-    //Output::send<LogLevel::Verbose>(STR("Object Name: {}\n"), Context.Context->GetName());
+    //Output::send<LogLevel::Verbose>(STR("Normal Wave: {} Sripted Wave: {}\n"), (int)arr[0], (int)arr[1]);
 
     struct {
         int NormalWave;
@@ -42,13 +46,32 @@ void HookPre_WaveTimer_GetWaveTimes(UnrealScriptFunctionCallableContext& Context
 
     params1.NormalWave = (int)arr[1];
     params1.SriptedWave = (int)arr[0];
-    auto SetWaveTimesFunction = UObjectGlobals::StaticFindObject<UFunction*>(nullptr, nullptr, STR("/Game/EnemyWaveTimer/WaveTimer.WaveTimer_C:SetWaveTimes"));
+
+    //auto SetWaveTimesFunction = UObjectGlobals::StaticFindObject<UFunction*>(nullptr, nullptr, STR("/Game/EnemyWaveTimer/WaveTimer.WaveTimer_C:SetWaveTimes"));
     //Output::send<LogLevel::Verbose>(STR("Object Name: {}\n"), SetWaveTimesFunction->GetName());
-    Context.Context->ProcessEvent(SetWaveTimesFunction, &params1);
+    //Context.Context->ProcessEvent(SetWaveTimesFunction, &params1);
 }
 
-void HookPost_WaveTimer_GetWaveTimes(UnrealScriptFunctionCallableContext& Context, void* CustomData)
+void HookPost_WaveTimer_GetWaveTimes(UnrealScriptFunctionCallableContext& context, void* custom_data)
 {
+    // ReturnParams params;
+    // params.NormalWave = 6;
+    //Context.SetReturnValue(6);
+
+    for (const auto& param : ((UFunction*)custom_data)->ForEachProperty())
+    {
+        if (param->HasAnyPropertyFlags(CPF_ReturnParm))
+        {
+            continue;
+        }
+        if (!param->HasAnyPropertyFlags(CPF_OutParm))
+        {
+            continue;
+        }
+
+        auto container_ptr = FindOutParamValueAddress(context.TheStack, param);
+        *(int*)container_ptr = 6;
+    }
 }
 
 
@@ -61,10 +84,11 @@ void OnCreate(){
         auto GetWaveTimesFunction = UObjectGlobals::StaticFindObject<UFunction*>(nullptr, nullptr, STR("/Game/EnemyWaveTimer/WaveTimer.WaveTimer_C:GetWaveTimes"));
         Output::send<LogLevel::Verbose>(STR("Object Name: {}\n"), GetWaveTimesFunction->GetFullName());
         if (GetWaveTimesFunction){
-            UObjectGlobals::RegisterHook(GetWaveTimesFunction, HookPre_WaveTimer_GetWaveTimes, HookPost_WaveTimer_GetWaveTimes, nullptr);
+            UObjectGlobals::RegisterHook(GetWaveTimesFunction, HookPre_WaveTimer_GetWaveTimes, HookPost_WaveTimer_GetWaveTimes, GetWaveTimesFunction);
             Output::send<LogLevel::Verbose>(STR("Hook success"));
             isHooked = true;
         }
+
 }
 
 
