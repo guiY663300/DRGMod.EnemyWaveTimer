@@ -8,72 +8,41 @@
 #include <DynamicOutput/DynamicOutput.hpp>
 #include <Unreal/UObjectGlobals.hpp>
 #include <Unreal/UObject.hpp>
-#include <Unreal/FText.hpp>
-#include <Unreal/FProperty.hpp>
 #include <Unreal/UFunction.hpp>
 #include <Unreal/BPMacros.hpp>
-#include <Unreal/UClass.hpp>
 #include <UE4SSProgram.hpp>
-
 
 using namespace std;
 using namespace RC;
 using namespace RC::Unreal;
 
 
-
 struct InputParams {
     UObject* WaveManager;
 } in;
 
-struct ReturnParams {
-     int NormalWave;
-};
-
+int NormalWave = 0;
+int SriptedWave = 0;
 
 void HookPre_WaveTimer_GetWaveTimes(UnrealScriptFunctionCallableContext& context, void* custom_data)
 {
     auto params = context.GetParams<InputParams>();
-    //Output::send<LogLevel::Verbose>(STR("Object Name: {}\n"), params.WaveManager->GetName());
 
     float* arr = (float*)((void*)(params.WaveManager + 0x134));
     //Output::send<LogLevel::Verbose>(STR("Normal Wave: {} Sripted Wave: {}\n"), (int)arr[0], (int)arr[1]);
 
-    struct {
-        int NormalWave;
-        int SriptedWave;
-    }params1;
-
-    params1.NormalWave = (int)arr[1];
-    params1.SriptedWave = (int)arr[0];
-
-    //auto SetWaveTimesFunction = UObjectGlobals::StaticFindObject<UFunction*>(nullptr, nullptr, STR("/Game/EnemyWaveTimer/WaveTimer.WaveTimer_C:SetWaveTimes"));
-    //Output::send<LogLevel::Verbose>(STR("Object Name: {}\n"), SetWaveTimesFunction->GetName());
-    //Context.Context->ProcessEvent(SetWaveTimesFunction, &params1);
+    NormalWave = (int)arr[1];
+    SriptedWave = (int)arr[0];
 }
 
 void HookPost_WaveTimer_GetWaveTimes(UnrealScriptFunctionCallableContext& context, void* custom_data)
 {
-    // ReturnParams params;
-    // params.NormalWave = 6;
-    //Context.SetReturnValue(6);
+    auto param = context.TheStack.OutParms();
+    *param->PropAddr = NormalWave;
 
-    for (const auto& param : ((UFunction*)custom_data)->ForEachProperty())
-    {
-        if (param->HasAnyPropertyFlags(CPF_ReturnParm))
-        {
-            continue;
-        }
-        if (!param->HasAnyPropertyFlags(CPF_OutParm))
-        {
-            continue;
-        }
-
-        auto container_ptr = FindOutParamValueAddress(context.TheStack, param);
-        *(int*)container_ptr = 6;
-    }
+    param = param->NextOutParm;
+    *param->PropAddr = SriptedWave;
 }
-
 
 bool isHooked = false;
 void OnCreate(){
@@ -84,11 +53,11 @@ void OnCreate(){
         auto GetWaveTimesFunction = UObjectGlobals::StaticFindObject<UFunction*>(nullptr, nullptr, STR("/Game/EnemyWaveTimer/WaveTimer.WaveTimer_C:GetWaveTimes"));
         Output::send<LogLevel::Verbose>(STR("Object Name: {}\n"), GetWaveTimesFunction->GetFullName());
         if (GetWaveTimesFunction){
-            UObjectGlobals::RegisterHook(GetWaveTimesFunction, HookPre_WaveTimer_GetWaveTimes, HookPost_WaveTimer_GetWaveTimes, GetWaveTimesFunction);
+
+            UObjectGlobals::RegisterHook(GetWaveTimesFunction, HookPre_WaveTimer_GetWaveTimes, HookPost_WaveTimer_GetWaveTimes, nullptr);
             Output::send<LogLevel::Verbose>(STR("Hook success"));
             isHooked = true;
         }
-
 }
 
 
@@ -98,13 +67,12 @@ public:
     MyAwesomeMod() : CppUserModBase()
     {
         ModName = STR("WaveTimer");
-        ModVersion = STR("1.0");
+        ModVersion = STR("1.1");
         ModDescription = STR("This is my awesome mod");
         ModAuthors = STR("iriscat");
         // Do not change this unless you want to target a UE4SS version
         // other than the one you're currently building with somehow.
         //ModIntendedSDKVersion = STR("2.6");
-
     }
 
     ~MyAwesomeMod() override
@@ -119,7 +87,6 @@ public:
 
     auto on_unreal_init() -> void override
     {
-        
         // You are allowed to use the 'Unreal' namespace in this function and anywhere else after this function has fired.
     }
 
