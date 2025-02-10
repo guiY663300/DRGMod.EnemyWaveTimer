@@ -27,10 +27,7 @@ int SriptedWave = 0;
 void HookPre_WaveTimer_GetWaveTimes(UnrealScriptFunctionCallableContext& context, void* custom_data)
 {
     auto params = context.GetParams<InputParams>();
-
     float* arr = (float*)((void*)(params.WaveManager + 0x134));
-    //Output::send<LogLevel::Verbose>(STR("Normal Wave: {} Sripted Wave: {}\n"), (int)arr[0], (int)arr[1]);
-
     NormalWave = (int)arr[1];
     SriptedWave = (int)arr[0];
 }
@@ -38,10 +35,12 @@ void HookPre_WaveTimer_GetWaveTimes(UnrealScriptFunctionCallableContext& context
 void HookPost_WaveTimer_GetWaveTimes(UnrealScriptFunctionCallableContext& context, void* custom_data)
 {
     auto param = context.TheStack.OutParms();
-    *param->PropAddr = NormalWave;
+    *(int*)param->PropAddr = NormalWave;
 
     param = param->NextOutParm;
-    *param->PropAddr = SriptedWave;
+    *(int*)param->PropAddr = SriptedWave;
+    
+    //Output::send<LogLevel::Verbose>(STR("Normal Wave: {} Scripted Wave: {}\n"), NormalWave, SriptedWave);
 }
 
 bool isHooked = false;
